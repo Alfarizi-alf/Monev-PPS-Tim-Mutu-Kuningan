@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Monev PPS (AI Powered)</title>
+    <!-- Memuat Tailwind CSS untuk styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Memuat SheetJS untuk membaca dan MENULIS file XLSX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Memuat jsPDF dan html2canvas untuk membuat PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        /* Style kustom untuk tampilan yang lebih baik */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7f6;
+        }
+        
+        th, td {
+            white-space: normal;
+            word-wrap: break-word;
+            padding: 12px 15px;
+            text-align: left;
+            vertical-align: top;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        th {
+            position: sticky;
+            top: 0;
+            background-color: #f1f5f9;
+            z-index: 10;
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        .tab-button.active {
+            background-color: #3b82f6;
+            color: white;
+            font-weight: bold;
+        }
+        .ai-button {
+            background-color: #10b981;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: inline-flex;
+            align-items: center;
+        }
+        .ai-button.feedback-btn {
+            background-color: #8b5cf6;
+        }
+        .ai-button.feedback-btn:hover {
+            background-color: #7c3aed;
+        }
+        .ai-button.pdf-btn {
+            background-color: #ef4444;
+        }
+        .ai-button.pdf-btn:hover {
+            background-color: #dc2626;
+        }
+        .ai-button.excel-btn {
+             background-color: #16a34a; /* Warna Hijau Excel */
+        }
+        .ai-button.excel-btn:hover {
+            background-color: #15803d;
+        }
+        .ai-button.analisa-btn {
+             background-color: #f97316; /* Warna Orange untuk Analisa */
+        }
+        .ai-button.analisa-btn:hover {
+            background-color: #ea580c;
+        }
+        .ai-button:hover {
+            background-color: #059669;
+        }
+        .ai-output {
+            margin-top: 8px;
+            padding: 8px;
+            background-color: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            font-size: 0.9rem;
+            color: #374151;
+            white-space: pre-wrap; /* Mempertahankan format teks dari AI */
+        }
+        .loader {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+</head>
+<body class="p-4 md:p-6">
+
+    <div class="max-w-full mx-auto bg-white p-6 rounded-xl shadow-lg">
+        <header class="mb-6 border-b pb-4">
+            <h1 class="text-3xl font-bold text-gray-800">Aplikasi Monev PPS (AI Powered)</h1>
+            <p class="text-gray-500 mt-1">Unggah file XLSX Anda untuk memulai monitoring dan evaluasi dengan bantuan kecerdasan buatan.</p>
+        </header>
+
+        <!-- Bagian Input API Key -->
+        <div id="api-key-setup" class="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-xl shadow-inner">
+            <h2 class="text-xl font-semibold text-indigo-800 mb-3">Langkah 1: Pengaturan Kunci Gemini API</h2>
+            <p class="text-sm text-indigo-700 mb-4">Aplikasi ini memerlukan Gemini API Key untuk fitur Analisis Kecocokan dan Feedback Pembina.</p>
+            <ol class="list-decimal list-inside text-xs text-indigo-600 mb-4 space-y-1">
+                <!-- Tautan diperbaiki ke halaman pembuatan kunci langsung -->
+                <li>Buka <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-800 underline font-medium">halaman Buat Kunci Gemini API</a>.</li>
+                <li>Buat dan salin Gemini API Key Anda.</li>
+                <li>Tempelkan kunci pada kolom di bawah ini, lalu klik Simpan.</li>
+            </ol>
+            <div class="flex flex-col sm:flex-row gap-2">
+                <input type="text" id="api-key-input" placeholder="Masukkan Gemini API Key di sini (Wajib)" class="flex-grow p-2 border border-indigo-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                <button id="save-key-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition">
+                    Simpan Kunci
+                </button>
+            </div>
+            <p id="key-message" class="text-xs mt-2 text-red-500 hidden">Kunci API belum disimpan atau tidak valid.</p>
+        </div>
+
+        <!-- Bagian Unggah File (Container) - Awalnya disembunyikan -->
+        <div id="file-upload-container" class="mb-6 hidden">
+            <label for="file-upload" class="block mb-2 text-sm font-medium text-gray-700">Langkah 2: Unggah File Laporan (.xlsx)</label>
+            <input type="file" id="file-upload" accept=".xlsx, .xls" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+        </div>
+        
+        <div id="app-content" class="hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+                <div id="tabs-container" class="flex flex-wrap gap-2"></div>
+                <div class="flex gap-2">
+                    <button id="download-table-btn" class="ai-button excel-btn flex-shrink-0">
+                        Unduh Tabel (XLSX)
+                    </button>
+                </div>
+            </div>
+            
+            <div id="summary-container" class="hidden mt-6 mb-4 p-4 border rounded-lg bg-gray-50"></div>
+
+            <div id="table-wrapper" class="overflow-x-auto border rounded-lg">
+                <table id="data-table" class="w-full text-sm text-gray-700">
+                    <thead class="text-xs text-gray-700 uppercase">
+                        <tr>
+                            <th style="min-width: 60px;">No</th>
+                            <th style="min-width: 200px;">Bab & EP</th>
+                            <th style="min-width: 350px;">Rekomendasi Surveyor</th>
+                            <th style="min-width: 350px;">Kegiatan</th>
+                            <th style="min-width: 350px;">Info Dokumen (Mock)</th>
+                            <th style="min-width: 350px;">Kecocokan (AI)</th>
+                            <th style="min-width: 150px;">Status Kegiatan</th>
+                            <th style="min-width: 250px;">Catatan Pembina</th>
+                            <th style="min-width: 300px;">Feedback Pembina (AI)</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+             <div id="initial-message" class="text-center py-10 px-4 bg-gray-50 rounded-lg">
+                <p class="text-gray-500">Data dari file yang diunggah akan muncul di sini.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let fullData = [];
+        const aiCache = new Map();
+        const MAX_RETRIES = 5;
+        const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
+        // Variabel ini kini diinisialisasi kosong dan akan diisi oleh input pengguna
+        let apiKey = ""; 
+
+        const fileUpload = document.getElementById('file-upload');
+        const fileUploadContainer = document.getElementById('file-upload-container');
+        const apiKeySetup = document.getElementById('api-key-setup');
+        const apiKeyInput = document.getElementById('api-key-input');
+        const saveKeyBtn = document.getElementById('save-key-btn');
+        const keyMessage = document.getElementById('key-message');
+
+        const appContent = document.getElementById('app-content');
+        const tabsContainer = document.getElementById('tabs-container');
+        const dataTableBody = document.querySelector('#data-table tbody');
+        const tableWrapper = document.getElementById('table-wrapper');
+        const initialMessage = document.getElementById('initial-message');
+        const summaryContainer = document.getElementById('summary-container');
+        const downloadTableBtn = document.getElementById('download-table-btn');
+        
+        tableWrapper.style.display = 'none';
+
+        // Event Listener untuk menyimpan kunci API
+        saveKeyBtn.addEventListener('click', saveApiKey);
+        fileUpload.addEventListener('change', handleFile, false);
+        downloadTableBtn.addEventListener('click', downloadTableAsXLSX);
+
+        function saveApiKey() {
+            const key = apiKeyInput.value.trim();
+            if (key.length > 20) {
+                apiKey = key;
+                keyMessage.classList.add('hidden');
+                
+                // Beri indikasi sukses dan sembunyikan setup
+                apiKeyInput.disabled = true;
+                saveKeyBtn.disabled = true;
+                saveKeyBtn.textContent = 'Kunci Tersimpan!';
+                
+                apiKeySetup.classList.remove('bg-indigo-50');
+                apiKeySetup.classList.add('bg-green-50', 'border-green-200');
+                
+                // Tampilkan container upload file
+                fileUploadContainer.classList.remove('hidden');
+            } else {
+                keyMessage.textContent = 'Kunci API tampaknya terlalu pendek. Pastikan Anda menyalin seluruh kunci.';
+                keyMessage.classList.remove('hidden');
+            }
+        }
+
+        /**
+         * Mengimplementasikan panggilan API dengan Exponential Backoff.
+         */
+        async function callGeminiApi(systemPrompt, userQuery) {
+            if (!apiKey) {
+                 return "Error: Kunci API tidak ditemukan. Harap masukkan kunci di kolom atas.";
+            }
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            for (let i = 0; i < MAX_RETRIES; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorBody = await response.json();
+                        if (response.status === 429 && i < MAX_RETRIES - 1) {
+                            const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            continue;
+                        }
+                        throw new Error(`API call failed with status ${response.status}: ${JSON.stringify(errorBody)}`);
+                    }
+
+                    const result = await response.json();
+                    return result.candidates?.[0]?.content?.parts?.[0]?.text || "Gagal mendapatkan respons dari AI. Cek apakah Kunci API sudah benar dan kuota API masih tersedia.";
+
+                } catch (error) {
+                    console.error("Gemini API Error:", error);
+                    if (i === MAX_RETRIES - 1) {
+                         return "Kesalahan API: Tidak dapat menghubungi layanan analisis AI. Pastikan kunci dan koneksi internet Anda berfungsi.";
+                    }
+                }
+            }
+        }
+
+        function handleFile(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                // Ambil semua data sebagai array of arrays
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                processData(jsonData);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processData(jsonData) {
+            if (jsonData.length === 0) {
+                 initialMessage.innerHTML = '<p class="text-red-500">File kosong. Pastikan sheet berisi data.</p>';
+                 initialMessage.style.display = 'block';
+                 tableWrapper.style.display = 'none';
+                 return;
+            }
+
+            const header = jsonData[0]; // Baris pertama dianggap header
+            const rows = jsonData.slice(1); // Sisanya adalah data
+
+            let headerMapping = {};
+            // Mencari kolom kunci secara fleksibel
+            if (header) {
+                header.forEach((cell, i) => {
+                    const cleanCell = String(cell || '').toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                    if (cleanCell.startsWith('bab') || cleanCell.includes('elemen_penilaian')) headerMapping.bab_ep = i;
+                    else if (cleanCell.startsWith('rekomendasi')) headerMapping.rekomendasi_surveyor = i;
+                    else if (cleanCell.startsWith('kegiatan')) headerMapping.kegiatan = i;
+                    else if (cleanCell.includes('status_kegiatan')) headerMapping.status_kegiatan = i;
+                    else if (cleanCell.includes('catatan_pembina')) headerMapping.catatan_pembina = i;
+                    else if (cleanCell.startsWith('no')) headerMapping.no = i;
+                });
+            }
+
+            // Fallback untuk indeks kolom (asumsi urutan umum, jika deteksi header gagal)
+            const noIndex = headerMapping.no !== undefined ? headerMapping.no : 0;
+            const babEpIndex = headerMapping.bab_ep !== undefined ? headerMapping.bab_ep : 1;
+            const rekomIndex = headerMapping.rekomendasi_surveyor !== undefined ? headerMapping.rekomendasi_surveyor : 2;
+            const kegiatanIndex = headerMapping.kegiatan !== undefined ? headerMapping.kegiatan : 3;
+            // Status dan Catatan Pembina bisa berada di akhir, gunakan fallback yang aman
+            const statusIndex = headerMapping.status_kegiatan !== undefined ? headerMapping.status_kegiatan : 6; 
+            const catatanIndex = headerMapping.catatan_pembina !== undefined ? headerMapping.catatan_pembina : 7; 
+            
+            let lastValidNo = '';
+
+            fullData = rows.map((row, index) => {
+                
+                let currentNo = row[noIndex] ? String(row[noIndex]).trim() : '';
+                const bab_ep = row[babEpIndex] ? String(row[babEpIndex]).trim() : '';
+                const rekomendasi_surveyor = row[rekomIndex] ? String(row[rekomIndex]).trim() : '';
+                const kegiatan = row[kegiatanIndex] ? String(row[kegiatanIndex]).trim() : '';
+                
+                // Skip jika baris benar-benar kosong berdasarkan kolom utama
+                if (!currentNo && !bab_ep && !rekomendasi_surveyor && !kegiatan) return null;
+
+                // Handle Pewarisan Nomor EP
+                if (currentNo) {
+                    lastValidNo = currentNo;
+                } else {
+                    currentNo = lastValidNo;
+                }
+                
+                if (!currentNo) return null; 
+
+                return { 
+                    id: index, // ID unik berdasarkan index baris asli
+                    no: currentNo, // Nomor yang sudah diwariskan
+                    bab_ep: bab_ep,
+                    rekomendasi_surveyor: rekomendasi_surveyor,
+                    kegiatan: kegiatan,
+                    // Ambil data menggunakan indeks yang ditemukan/fallback
+                    status_kegiatan: row[statusIndex] || '',
+                    catatan_pembina: row[catatanIndex] || '',
+                    // AI cache placeholders
+                    ai_info_doc: '',
+                    ai_analisa: '',
+                    ai_feedback: '',
+                    kecocokan_manual: '',
+                };
+            }).filter(item => item !== null); 
+
+            if (fullData.length > 0) {
+                appContent.classList.remove('hidden');
+                tableWrapper.style.display = 'block';
+                initialMessage.style.display = 'none';
+                createTabs(); 
+                renderTable(fullData);
+            } else {
+                initialMessage.innerHTML = '<p class="text-red-500">Gagal memproses file. Pastikan sheet berisi data Monev yang valid (kolom No, Bab & EP, Rekomendasi harus terisi di baris pertama).</p>';
+                initialMessage.style.display = 'block';
+                tableWrapper.style.display = 'none';
+            }
+        }
+        
+        function createTabs() {
+             tabsContainer.innerHTML = '';
+             summaryContainer.classList.add('hidden');
+             const babColumnKey = 'bab_ep';
+             if (!fullData[0] || !fullData[0][babColumnKey]) {
+                 tabsContainer.innerHTML = '<p class="text-red-500">Kolom "Bab & EP" tidak ditemukan atau kosong.</p>';
+                 return;
+             }
+
+             // Mengambil semua nilai unik "Bab X"
+             const babs = [...new Set(fullData.map(item => {
+                 const babInfo = (item[babColumnKey] || '').toString();
+                 // Regex untuk mencari pola Bab I, Bab 1, BAB IV, dll.
+                 const match = babInfo.match(/Bab\s*([IVXLCDM\d]+)/i); 
+                 return match ? `BAB ${match[1].toUpperCase()}` : null;
+             }).filter(Boolean))];
+
+             // Mengurutkan tab berdasarkan nomor Bab (menggunakan parsing angka Romawi/Arab)
+             babs.sort((a, b) => {
+                 const romanToNumber = (r) => {
+                    r = r.toUpperCase();
+                    if (!r) return 0;
+                    const map = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+                    let val = 0;
+                    for (let i = 0; i < r.length; i++) {
+                        const current = map[r[i]];
+                        const next = map[r[i + 1]];
+                        if (next > current) {
+                            val += next - current;
+                            i++;
+                        } else {
+                            val += current;
+                        }
+                    }
+                    return val;
+                 };
+
+                 const getBabNumber = (babString) => {
+                     const parts = babString.split(' ');
+                     const numberPart = parts.pop();
+                     const num = parseInt(numberPart);
+                     return isNaN(num) ? romanToNumber(numberPart) : num;
+                 };
+
+                 return getBabNumber(a) - getBabNumber(b);
+             });
+             
+             const allButton = document.createElement('button');
+             allButton.textContent = 'Semua Bab';
+             allButton.className = 'tab-button active px-4 py-2 rounded-md bg-gray-200 text-gray-700';
+             allButton.onclick = () => {
+                 renderTable(fullData);
+                 summaryContainer.classList.add('hidden');
+                 document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                 allButton.classList.add('active');
+             };
+             tabsContainer.appendChild(allButton);
+
+             babs.forEach(bab => {
+                 const button = document.createElement('button');
+                 button.textContent = bab;
+                 button.className = 'tab-button px-4 py-2 rounded-md bg-gray-200 text-gray-700';
+                 button.onclick = () => {
+                     const filteredData = fullData.filter(item => {
+                         const babInfo = (item[babColumnKey] || '').toString().toUpperCase();
+                         return babInfo.startsWith(bab);
+                     });
+                     renderTable(filteredData);
+                     showBabSummaryUI(bab);
+                     document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                     button.classList.add('active');
+                 };
+                 tabsContainer.appendChild(button);
+             });
+        }
+
+        function renderTable(data) {
+            dataTableBody.innerHTML = '';
+            data.forEach((row) => {
+                const tr = document.createElement('tr');
+                tr.id = `row-${row.id}`;
+                tr.className = 'bg-white hover:bg-gray-50';
+                
+                const status = (row.status_kegiatan || '').toLowerCase();
+                let statusOptions = `
+                    <option value="belum" ${status.includes('belum') ? 'selected' : ''}>Belum dilaksanakan</option>
+                    <option value="proses" ${status.includes('proses') ? 'selected' : ''}>Dalam Proses</option>
+                    <option value="selesai" ${status.includes('selesai') || status.includes('sudah') ? 'selected' : ''}>Selesai</option>
+                `;
+                if (!status.includes('belum') && !status.includes('proses') && !status.includes('selesai') && !status.includes('sudah')) {
+                    statusOptions = `<option value="">Pilih Status</option>` + statusOptions;
+                }
+
+                // Handle initial kecocokan value
+                let kecocokanOptions = `
+                    <option value="">Pilih</option>
+                    <option value="cocok" ${row.kecocokan_manual === 'cocok' ? 'selected' : ''}>Cocok</option>
+                    <option value="kurang" ${row.kecocokan_manual === 'kurang' ? 'selected' : ''}>Kurang Cocok</option>
+                    <option value="tidak" ${row.kecocokan_manual === 'tidak' ? 'selected' : ''}>Tidak Cocok</option>
+                `;
+
+                tr.innerHTML = `
+                    <td>${row.no || ''}</td>
+                    <td data-rekom="${row.rekomendasi_surveyor || ''}">${(row.bab_ep || '').replace(/\n/g, '<br>')}</td>
+                    <td>${row.rekomendasi_surveyor || ''}</td>
+                    <td>${row.kegiatan || ''}</td>
+                    <td id="info-${row.id}">
+                        <button class="ai-button" onclick="generateAiResponse('${row.id}', 'info')">Info Dokumen (Mock)</button>
+                        ${row.ai_info_doc ? `<div class="ai-output">${row.ai_info_doc}</div>` : ''}
+                    </td>
+                    <td id="analisa-${row.id}">
+                         <button class="ai-button analisa-btn" onclick="generateAiResponse('${row.id}', 'analisa')">Analisa Kecocokan (AI)</button>
+                         ${row.ai_analisa ? `<div class="ai-output">${row.ai_analisa}</div>` : ''}
+                         <div class="mt-2">
+                             <select onchange="updateRowData('${row.id}', 'kecocokan_manual', this.value)" class="w-full border border-gray-300 rounded-md p-1 text-xs">
+                                ${kecocokanOptions}
+                             </select>
+                         </div>
+                    </td>
+                    <td>
+                        <select onchange="updateRowData('${row.id}', 'status_kegiatan', this.value)" class="w-full border border-gray-300 rounded-md p-1 text-xs">
+                            ${statusOptions}
+                        </select>
+                    </td>
+                    <td>
+                        <textarea oninput="updateRowData('${row.id}', 'catatan_pembina', this.value)" class="w-full border border-gray-300 rounded-md p-1 text-xs" rows="3">${row.catatan_pembina || ''}</textarea>
+                    </td>
+                    <td id="feedback-${row.id}">
+                         <button class="ai-button feedback-btn" onclick="generateAiResponse('${row.id}', 'feedback')">Buat Feedback (AI)</button>
+                         ${row.ai_feedback ? `<div class="ai-output">${row.ai_feedback}</div>` : ''}
+                    </td>
+                `;
+                dataTableBody.appendChild(tr);
+            });
+        }
+
+        function updateRowData(rowId, key, value) {
+            const row = fullData.find(d => d.id == rowId);
+            if (row) {
+                row[key] = value;
+            }
+        }
+        
+        /**
+         * FUNGSI MOCK UNTUK INFO DOKUMEN (Karena tidak memerlukan LLM kompleks)
+         */
+        function getMockInfoDoc(rekomendasi, kegiatan) {
+             const rek = (rekomendasi || '').toLowerCase();
+             const keg = (kegiatan || '').toLowerCase();
+             let docPoints = new Set();
+             if (keg.includes('sosialisasi')) docPoints.add('<li>Periksa bukti: <strong>Undangan, Daftar Hadir, Notulensi</strong>.</li>');
+             if (keg.includes('audit')) docPoints.add('<li>Periksa dokumen: <strong>Instrumen Audit, Laporan Hasil Audit</strong>.</li>');
+             if (keg.includes('revisi') || keg.includes('reviu') || keg.includes('menyusun')) docPoints.add('<li>Cari dokumen: <strong>SK Terkait, Draf Revisi, Bukti Pembahasan</strong>.</li>');
+             if (keg.includes('monitoring') || keg.includes('evaluasi')) docPoints.add('<li>Verifikasi adanya: <strong>Checklist Monitoring, Laporan Evaluasi</strong>.</li>');
+             if (docPoints.size === 0) {
+                 docPoints.add('<li>Pastikan ada <strong>SOP</strong> terkait kegiatan.</li>');
+                 docPoints.add('<li>Periksa adanya <strong>bukti pelaksanaan</strong> (dokumentasi/foto).</li>');
+             }
+             return `<p>Dokumen yang relevan untuk diverifikasi:</p><ul class="list-disc list-inside text-xs mt-1">${Array.from(docPoints).join('')}</ul>`;
+        }
+
+        /**
+         * FUNGSI UTAMA UNTUK GENERASI RESPONS AI
+         * Menggunakan callGeminiApi untuk 'analisa' dan 'feedback'
+         */
+        async function generateAiResponse(rowId, type) {
+            const rowData = fullData.find(d => d.id == rowId);
+            if (!rowData) return;
+
+            const targetCell = document.getElementById(`${type}-${rowId}`);
+            const cacheKey = `${rowId}-${type}`;
+
+            // 1. Handle Caching
+            if (aiCache.has(cacheKey)) {
+                let cachedHtml = aiCache.get(cacheKey);
+                targetCell.innerHTML = cachedHtml;
+                return;
+            }
+
+            // 2. Handle Mock (Info Dokumen)
+            if (type === 'info') {
+                 const mockOutput = getMockInfoDoc(rowData.rekomendasi_surveyor, rowData.kegiatan);
+                 const htmlOutput = `<button class="ai-button" onclick="generateAiResponse('${rowId}', 'info')">Info Dokumen (Mock)</button><div class="ai-output">${mockOutput}</div>`;
+                 rowData.ai_info_doc = mockOutput;
+                 aiCache.set(cacheKey, htmlOutput);
+                 targetCell.innerHTML = htmlOutput;
+                 return;
+            }
+
+            // 3. Handle AI (Analisa & Feedback)
+            const originalButtonHtml = targetCell.querySelector('button').outerHTML;
+            const selectElement = targetCell.querySelector('select'); // For Kecocokan selection
+            
+            // Temporary loading display
+            let loadingHtml = `<div class="flex items-center text-sm text-gray-500"><span class="loader"></span> Menganalisis dengan Gemini...</div>`;
+            if (type === 'analisa' && selectElement) {
+                targetCell.innerHTML = originalButtonHtml.replace('Analisa Kecocokan (AI)', loadingHtml) + `<div class="mt-2">${selectElement.outerHTML}</div>`;
+            } else {
+                 targetCell.innerHTML = originalButtonHtml.replace('Buat Feedback (AI)', loadingHtml);
+            }
+            
+            let systemPrompt = '';
+            let userQuery = '';
+            let outputKey = '';
+            let kecocokanKeyword = '';
+
+            if (type === 'analisa') {
+                outputKey = 'ai_analisa';
+                // PROMPT BARU: Lebih singkat dan to the point
+                systemPrompt = `Anda adalah seorang Auditor Akreditasi yang sangat berpengalaman di Indonesia. Tugas Anda adalah membandingkan "Rekomendasi Surveyor" dan "Kegiatan Tindak Lanjut" untuk menentukan tingkat keselarasan. Jawablah dengan **singkat, padat, dan tanpa narasi yang berlebihan**. Berikan hasil analisis dalam format berikut (harus dalam 3 bagian):
+                ANALISIS SINGKAT: [Jelaskan secara ringkas Poin kunci kecocokan atau ketidakcocokan. Maksimal 2 kalimat.]
+                TINGKAT KECOCOKAN: [Hanya isi dengan satu kata: Cocok, Kurang Cocok, atau Tidak Cocok. Harap pilih salah satu dari tiga kata ini]
+                SARAN TINDAK LANJUT: [Berikan saran aksi yang spesifik dan langsung. Maksimal 1 kalimat.]
+                `;
+                userQuery = `Rekomendasi Surveyor: ${rowData.rekomendasi_surveyor}\nKegiatan Tindak Lanjut: ${rowData.kegiatan}`;
+            } else if (type === 'feedback') {
+                outputKey = 'ai_feedback';
+                systemPrompt = `Anda adalah Pembina Monev yang memberikan feedback singkat dan membangun berdasarkan Rekomendasi, Kegiatan, dan Catatan Pembina yang sudah ada. Berikan tanggapan yang lugas dan berwibawa dalam Bahasa Indonesia.`;
+                userQuery = `Rekomendasi: ${rowData.rekomendasi_surveyor}\nKegiatan: ${rowData.kegiatan}\nCatatan Pembina (Manual): ${rowData.catatan_pembina || 'Belum ada catatan'}\n\nBuatkan feedback akhir untuk tim pelaksana (maksimal 50 kata).`;
+            }
+
+            const aiText = await callGeminiApi(systemPrompt, userQuery);
+            
+            // 4. Proses Hasil AI
+            rowData[outputKey] = aiText;
+            let htmlOutput = originalButtonHtml + `<div class="ai-output">${aiText}</div>`;
+
+            if (type === 'analisa') {
+                const lines = aiText.split('\n');
+                const kecocokanLine = lines.find(line => line.includes('TINGKAT KECOCOKAN:'));
+                if (kecocokanLine) {
+                    kecocokanKeyword = kecocokanLine.split(':').pop().trim().toLowerCase().replace('kurang cocok', 'kurang').replace('tidak cocok', 'tidak');
+                }
+                
+                // Update the manual select box if a keyword was found
+                if (selectElement) {
+                    selectElement.value = kecocokanKeyword;
+                    updateRowData(rowId, 'kecocokan_manual', kecocokanKeyword);
+                }
+                
+                // Re-insert the select element after the AI button and output
+                htmlOutput += `<div class="mt-2">${selectElement.outerHTML}</div>`;
+            }
+            
+            // 5. Update UI dan Cache
+            aiCache.set(cacheKey, htmlOutput);
+            targetCell.innerHTML = htmlOutput;
+        }
+
+        function showBabSummaryUI(babName) {
+            summaryContainer.classList.remove('hidden');
+            summaryContainer.innerHTML = `
+                <h2 class="text-xl font-semibold text-gray-800 mb-3">Rekapitulasi untuk ${babName}</h2>
+                <button id="generate-bab-summary-btn" class="ai-button !bg-blue-600 !hover:bg-blue-700 !text-base !py-2 !px-5">
+                    Buat Rekapitulasi & Saran Strategis ${babName} (AI)
+                </button>
+                <div id="bab-summary-output" class="mt-4"></div>
+            `;
+            document.getElementById('generate-bab-summary-btn').onclick = () => generateBabSummary(babName);
+        }
+
+        /**
+         * FUNGSI UNTUK GENERASI RINGKASAN BAB MENGGUNAKAN AI
+         */
+        async function generateBabSummary(babName) {
+            const babSummaryOutput = document.getElementById('bab-summary-output');
+            babSummaryOutput.innerHTML = `<div class="flex items-center text-sm text-gray-500"><span class="loader"></span> Melakukan analisis strategis dengan Gemini...</div>`;
+            
+            const rows = Array.from(dataTableBody.querySelectorAll('tr'));
+            
+            // 1. Kumpulkan data EP yang dinilai manual (Kurang/Tidak Cocok)
+            let problemDetails = { kurang: [], tidak: [] };
+            let summaryText = `Analisis Bab ${babName}:\n\n`;
+
+            rows.forEach(row => {
+                const select = row.querySelector('td:nth-child(6) select');
+                const epText = row.querySelector('td:nth-child(2)').innerText.replace(/\n/g, ' - ').trim();
+                const rekomText = row.querySelector('td:nth-child(3)').innerText.trim();
+                const kegiatanText = row.querySelector('td:nth-child(4)').innerText.trim();
+                const kecocokanManual = select ? select.value : '';
+
+                if (kecocokanManual === 'kurang') {
+                     problemDetails.kurang.push(`EP: ${epText}\nRekomendasi: ${rekomText}\nKegiatan: ${kegiatanText}`);
+                } else if (kecocokanManual === 'tidak') {
+                     problemDetails.tidak.push(`EP: ${epText}\nRekomendasi: ${rekomText}\nKegiatan: ${kegiatanText}`);
+                }
+            });
+
+            // 2. Susun Prompt untuk AI
+            if (problemDetails.tidak.length > 0) {
+                 summaryText += "Prioritas Tinggi (Tidak Cocok):\n" + problemDetails.tidak.join('\n---\n');
+            }
+            if (problemDetails.kurang.length > 0) {
+                 summaryText += "\n\nPerhatian (Kurang Cocok):\n" + problemDetails.kurang.join('\n---\n');
+            }
+            
+            if (problemDetails.kurang.length === 0 && problemDetails.tidak.length === 0) {
+                summaryText = `Semua EP pada ${babName} telah diisi atau dinilai Cocok. Buatkan laporan strategis yang mengapresiasi kinerja tim dan memberikan saran untuk mempertahankan kualitas dan kepatuhan dokumentasi.`;
+            } else {
+                 summaryText += "\n\nBerdasarkan data di atas, identifikasi 3 TEMA MASALAH utama yang muncul (misal: Dokumentasi, Pelatihan Staf, Kebijakan Internal). Kemudian, berikan 3 SARAN STRATEGIS tingkat manajerial (maksimal 3 poin) untuk perbaikan komprehensif pada Bab ini. Format hasil dalam HTML yang rapi (gunakan <strong> dan <br>).";
+            }
+            
+            const systemPrompt = `Anda adalah Direktur Monitoring dan Evaluasi. Tugas Anda adalah menganalisis data Monev Akreditasi dan memberikan Laporan Strategis (Thematic Analysis) dan Rekomendasi Manajerial yang jelas dan berorientasi solusi.`;
+            const aiSummary = await callGeminiApi(systemPrompt, summaryText);
+
+            // 3. Tampilkan Hasil
+            const counts = rows.reduce((acc, row) => {
+                 const select = row.querySelector('td:nth-child(6) select');
+                 const value = select ? select.value : '';
+                 if (value === 'cocok') acc.cocok++;
+                 else if (value === 'kurang') acc.kurang++;
+                 else if (value === 'tidak') acc.tidak++;
+                 else acc.belum++;
+                 return acc;
+            }, { cocok: 0, kurang: 0, tidak: 0, belum: 0 });
+
+            babSummaryOutput.innerHTML = `
+                 <div id="summary-content-to-print" class="p-4 bg-white rounded-lg space-y-4 border shadow-xl">
+                     <h3 class="font-bold text-lg text-gray-900">Laporan Strategis Tindak Lanjut ${babName}</h3>
+                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                         <div class="p-3 bg-green-100 rounded-md"><p class="text-2xl font-bold text-green-800">${counts.cocok}</p><p class="text-sm text-green-700">EP Cocok</p></div>
+                         <div class="p-3 bg-yellow-100 rounded-md"><p class="text-2xl font-bold text-yellow-800">${counts.kurang}</p><p class="text-sm text-yellow-700">EP Kurang Cocok</p></div>
+                         <div class="p-3 bg-red-100 rounded-md"><p class="text-2xl font-bold text-red-800">${counts.tidak}</p><p class="text-sm text-red-700">EP Tidak Cocok</p></div>
+                         <div class="p-3 bg-gray-100 rounded-md"><p class="text-2xl font-bold text-gray-800">${counts.belum}</p><p class="text-sm text-gray-700">Belum Dinilai</p></div>
+                     </div>
+                     <div class="ai-output !bg-indigo-50 !border-indigo-500 !text-gray-800">
+                         <h4 class="font-semibold text-lg text-indigo-700 mb-2">Analisa Strategis (Generasi AI)</h4>
+                         <p class="text-sm">${aiSummary}</p>
+                     </div>
+                 </div>
+                 <button id="download-pdf-btn" class="ai-button pdf-btn mt-4">Unduh Laporan Strategis (PDF)</button>
+             `;
+            
+             document.getElementById('download-pdf-btn').onclick = () => downloadSummaryAsPDF(babName);
+        }
+        
+        function downloadSummaryAsPDF(babName) {
+            const { jsPDF } = window.jspdf;
+            const contentToPrint = document.getElementById('summary-content-to-print');
+            
+            const downloadBtn = document.getElementById('download-pdf-btn');
+            downloadBtn.innerHTML = '<span class="loader"></span> Membuat PDF...';
+            downloadBtn.disabled = true;
+
+            html2canvas(contentToPrint, { scale: 2 }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                const imgProps= pdf.getImageProperties(imgData);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                
+                let heightLeft = imgHeight;
+                let position = 15;
+                
+                pdf.addImage(imgData, 'PNG', 10, position, pdfWidth - 20, imgHeight > pageHeight ? pageHeight - 2 * position : imgHeight);
+                heightLeft -= (pageHeight - 2 * position);
+
+                while (heightLeft > 0) {
+                    position = imgHeight - heightLeft + 15;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 10, -position, pdfWidth - 20, imgHeight);
+                    heightLeft -= (pageHeight - 20); // Adjust for margins
+                }
+                
+                pdf.save(`Laporan_Strategis_Monev_${babName.replace(' ','_')}.pdf`);
+                
+                downloadBtn.innerHTML = 'Unduh Laporan Strategis (PDF)';
+                downloadBtn.disabled = false;
+            }).catch(error => {
+                console.error("Error generating PDF:", error);
+                downloadBtn.innerHTML = 'Gagal membuat PDF';
+                downloadBtn.disabled = false;
+            });
+        }
+
+        function downloadTableAsXLSX() {
+            const btn = document.getElementById('download-table-btn');
+            btn.innerHTML = '<span class="loader"></span> Menyiapkan file...';
+            btn.disabled = true;
+
+            setTimeout(() => {
+                const dataToExport = [];
+                const headers = [
+                    "No", "Bab & EP", "Rekomendasi Surveyor", "Kegiatan", 
+                    "Info Dokumen (Mock)", "Analisa Kecocokan (AI)", "Pilihan Kecocokan Manual", 
+                    "Status Kegiatan", "Catatan Pembina Manual", "Feedback Pembina (AI)"
+                ];
+                
+                fullData.forEach(row => {
+                    const rowData = {};
+                    rowData[headers[0]] = row.no;
+                    rowData[headers[1]] = row.bab_ep;
+                    rowData[headers[2]] = row.rekomendasi_surveyor;
+                    rowData[headers[3]] = row.kegiatan;
+                    
+                    // Ambil data AI dan Manual dari objek fullData
+                    rowData[headers[4]] = row.ai_info_doc.replace(/<[^>]*>?/gm, '').trim() || '';
+                    rowData[headers[5]] = row.ai_analisa.replace(/<[^>]*>?/gm, '').trim() || '';
+                    rowData[headers[6]] = row.kecocokan_manual ? (row.kecocokan_manual.charAt(0).toUpperCase() + row.kecocokan_manual.slice(1)).replace('Kurang', 'Kurang Cocok').replace('Tidak', 'Tidak Cocok') : 'Belum Dinilai';
+
+                    // Coba ambil dari UI jika baris saat ini ada di tabel, jika tidak gunakan data mentah
+                    const selectStatusElement = document.querySelector(`#row-${row.id} td:nth-child(7) select`);
+                    const selectStatus = selectStatusElement ? selectStatusElement.options[selectStatusElement.selectedIndex].text : row.status_kegiatan;
+                    rowData[headers[7]] = selectStatus;
+
+                    rowData[headers[8]] = row.catatan_pembina || '';
+                    rowData[headers[9]] = row.ai_feedback.replace(/<[^>]*>?/gm, '').trim() || '';
+                    
+                    dataToExport.push(rowData);
+                });
+
+                const worksheet = XLSX.utils.json_to_sheet(dataToExport, { header: headers });
+
+                // Penyesuaian Style dan Lebar Kolom
+                const headerStyle = { font: { bold: true, color: { rgb: "FFFFFFFF" } }, fill: { fgColor: { rgb: "FF4F81BD" } }, alignment: { horizontal: "center", vertical: "center", wrapText: true } };
+                const cellStyle = { alignment: { wrapText: true, vertical: "top" } };
+                const greenFill = { fgColor: { rgb: "FFC6EFCE" } };
+                const yellowFill = { fgColor: { rgb: "FFFFEB9C" } };
+                const redFill = { fgColor: { rgb: "FFFFC7CE" } };
+
+                const range = XLSX.utils.decode_range(worksheet['!ref']);
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const address = XLSX.utils.encode_cell({ c: C, r: 0 });
+                    if (worksheet[address]) worksheet[address].s = headerStyle;
+                }
+                
+                for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+                    for (let C = range.s.c; C <= range.e.c; ++C) {
+                        const address = XLSX.utils.encode_cell({ c: C, r: R });
+                        if (!worksheet[address]) continue;
+                        worksheet[address].s = cellStyle;
+                        
+                        if (C === 6) { // Pilihan Kecocokan Manual
+                            const val = (worksheet[address].v || '').toLowerCase();
+                            if (val.includes('cocok')) worksheet[address].s = { ...cellStyle, fill: greenFill };
+                            if (val.includes('kurang')) worksheet[address].s = { ...cellStyle, fill: yellowFill };
+                            if (val.includes('tidak')) worksheet[address].s = { ...cellStyle, fill: redFill };
+                        }
+                    }
+                }
+
+                worksheet['!cols'] = [
+                    { wch: 5 }, { wch: 25 }, { wch: 45 }, { wch: 45 }, 
+                    { wch: 45 }, { wch: 45 }, { wch: 15 }, { wch: 15 }, 
+                    { wch: 30 }, { wch: 45 }
+                ];
+
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Monev");
+                XLSX.writeFile(workbook, "Laporan_Monev_PPS_Terformat.xlsx");
+
+                btn.innerHTML = 'Unduh Tabel (XLSX)';
+                btn.disabled = false;
+            }, 500);
+        }
+
+    </script>
+</body>
+</html>

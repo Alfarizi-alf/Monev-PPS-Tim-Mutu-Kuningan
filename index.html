@@ -6,12 +6,7 @@
     <title>Aplikasi Monev PPS</title>
     <!-- Memuat Tailwind CSS untuk styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Memuat SheetJS untuk membaca dan MENULIS file XLSX -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- Memuat jsPDF dan html2canvas untuk membuat PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
+    
     <style>
         /* Style kustom untuk tampilan yang lebih baik */
         body {
@@ -105,11 +100,318 @@
     </style>
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 </head>
-<body class="p-4 md:p-6">
+<body>
+    <div id="loading-external-scripts" class="text-center p-8 text-gray-600">
+        <p><span class="loader"></span> Memuat pustaka eksternal (SheetJS, jsPDF, dll.). Harap tunggu...</p>
+    </div>
+    
+    <div id="main-app-content" class="p-4 md:p-6 hidden">
+        <div class="max-w-full mx-auto bg-white p-6 rounded-xl shadow-lg">
+            <header class="mb-6 border-b pb-4">
+                <h1 class="text-3xl font-bold text-gray-800">Aplikasi Monev PPS</h1>
+                <p class="text-gray-500 mt-1">Unggah file XLSX Anda untuk memulai monitoring dan evaluasi dengan bantuan kecerdasan buatan.</p>
+            </header>
+    
+            <!-- Bagian Input API Key -->
+            <div id="api-key-setup" class="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-xl shadow-inner">
+                <h2 class="text-xl font-semibold text-indigo-800 mb-3">Langkah 1: Pengaturan Kunci Gemini API</h2>
+                <p class="text-sm text-indigo-700 mb-4">Aplikasi ini memerlukan Gemini API Key untuk fitur Analisis Kecocokan dan Feedback Pembina.</p>
+                <ol class="list-decimal list-inside text-xs text-indigo-600 mb-4 space-y-1">
+                    <li>Buka <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-800 underline font-medium">halaman Buat Kunci Gemini API</a>.</li>
+                    <li>Buat dan salin Gemini API Key Anda.</li>
+                    <li>Tempelkan kunci pada kolom di bawah ini, lalu klik Simpan.</li>
+                </ol>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="text" id="api-key-input" placeholder="Masukkan Gemini API Key di sini (Wajib)" class="flex-grow p-2 border border-indigo-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <button id="save-key-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition">
+                        Simpan Kunci
+                    </button>
+                </div>
+                <p id="key-message" class="text-xs mt-2 text-red-500 hidden">Kunci API belum disimpan atau tidak valid.</p>
+            </div>
+    
+            <!-- Bagian Unggah File (Container) - Awalnya disembunyikan -->
+            <div id="file-upload-container" class="mb-6 hidden">
+                <label for="file-upload" class="block mb-2 text-sm font-medium text-gray-700">Langkah 2: Unggah File Laporan (.xlsx)</label>
+                <input type="file" id="file-upload" accept=".xlsx, .xls" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            </div>
+            
+            <div id="app-content" class="hidden">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+                    <div id="tabs-container" class="flex flex-wrap gap-2"></div>
+                    <div class="flex gap-2">
+                        <button id="download-table-btn" class="ai-button excel-btn flex-shrink-0">
+                            Unduh Tabel (XLSX)
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="summary-container" class="hidden mt-6 mb-4 p-4 border rounded-lg bg-gray-50"></div>
+    
+                <!-- Kotak Diagnostik/Status -->
+                <div id="diagnostic-box" class="hidden p-3 mb-4 bg-yellow-100 rounded-lg border border-yellow-300">
+                    <!-- Isi diisi oleh JavaScript -->
+                </div>
+    
+                <div id="table-wrapper" class="overflow-x-auto border rounded-lg">
+                    <table id="data-table" class="w-full text-sm text-gray-700">
+                        <thead class="text-xs text-gray-700 uppercase">
+                            <tr>
+                                <th style="min-width: 60px;">No</th>
+                                <th style="min-width: 200px;">Bab & EP</th>
+                                <th style="min-width: 350px;">Uraian EP</th>
+                                <th style="min-width: 350px;">Rekomendasi Surveyor</th>
+                                <th style="min-width: 350px;">Kegiatan</th>
+                                <th style="min-width: 350px;">Info Dokumen</th>
+                                <th style="min-width: 350px;">Kecocokan</th>
+                                <th style="min-width: 150px;">Status Kegiatan</th>
+                                <th style="min-width: 250px;">Catatan Pembina</th>
+                                <th style="min-width: 300px;">Feedback Pembina</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Pesan awal sebelum unggah file -->
+            <div id="initial-message" class="text-center py-10 px-4 bg-gray-50 rounded-lg">
+                <p class="text-gray-500">Data dari file yang diunggah akan muncul di sini.</p>
+            </div>
+        </div>
+    </div>
 
-    <div class="max-w-full mx-auto bg-white p-6 rounded-xl shadow-lg">
-        <header class="mb-6 border-b pb-4">
-            <h1 class="text-3xl font-bold text-gray-800">Aplikasi Monev PPS</h1>
+    <!-- SCRIPT LIBRARY EKSTERNAL (INLINE) -->
+    <script>
+        // Memuat jsPDF (umd) dan html2canvas secara dinamis
+        async function loadExternalScripts() {
+            const scripts = [
+                "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
+                "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+                "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+            ];
+
+            const loadScript = (url) => {
+                return new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = url;
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            };
+
+            try {
+                // Load scripts sequentially to avoid dependency issues
+                await loadScript(scripts[0]); // XLSX
+                await loadScript(scripts[1]); // html2canvas
+                await loadScript(scripts[2]); // jspdf
+
+                document.getElementById('loading-external-scripts').classList.add('hidden');
+                document.getElementById('main-app-content').classList.remove('hidden');
+                console.log("External libraries loaded successfully.");
+                initApp();
+            } catch (error) {
+                console.error("Failed to load external scripts:", error);
+                document.getElementById('loading-external-scripts').innerHTML = '<p class="text-red-500">Gagal memuat pustaka penting (XLSX, PDF). Cek koneksi internet Anda atau coba muat ulang.</p>';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadExternalScripts);
+    </script>
+
+    <!-- SCRIPT APLIKASI UTAMA -->
+    <script>
+        // Variabel global akan diinisialisasi setelah skrip eksternal dimuat
+        let fullData = [];
+        const aiCache = new Map();
+        const MAX_RETRIES = 5;
+        const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
+        let apiKey = ""; 
+
+        let fileUpload, fileUploadContainer, apiKeySetup, apiKeyInput, saveKeyBtn, keyMessage;
+        let appContent, tabsContainer, dataTableBody, tableWrapper, diagnosticBox, initialMessage, summaryContainer, downloadTableBtn;
+
+        function initApp() {
+            // Dapatkan semua elemen setelah skrip eksternal dimuat
+            fileUpload = document.getElementById('file-upload');
+            fileUploadContainer = document.getElementById('file-upload-container');
+            apiKeySetup = document.getElementById('api-key-setup');
+            apiKeyInput = document.getElementById('api-key-input');
+            saveKeyBtn = document.getElementById('save-key-btn');
+            keyMessage = document.getElementById('key-message');
+
+            appContent = document.getElementById('app-content');
+            tabsContainer = document.getElementById('tabs-container');
+            dataTableBody = document.querySelector('#data-table tbody');
+            tableWrapper = document.getElementById('table-wrapper');
+            diagnosticBox = document.getElementById('diagnostic-box');
+            initialMessage = document.getElementById('initial-message'); 
+            summaryContainer = document.getElementById('summary-container');
+            downloadTableBtn = document.getElementById('download-table-btn');
+
+            tableWrapper.style.display = 'none';
+
+            // Event Listener
+            saveKeyBtn.addEventListener('click', saveApiKey);
+            fileUpload.addEventListener('change', handleFile, false);
+            downloadTableBtn.addEventListener('click', downloadTableAsXLSX);
+        }
+
+        function saveApiKey() {
+            const key = apiKeyInput.value.trim();
+            if (key.length > 20) {
+                apiKey = key;
+                keyMessage.classList.add('hidden');
+                
+                apiKeyInput.disabled = true;
+                saveKeyBtn.disabled = true;
+                saveKeyBtn.textContent = 'Kunci Tersimpan!';
+                
+                apiKeySetup.classList.remove('bg-indigo-50');
+                apiKeySetup.classList.add('bg-green-50', 'border-green-200');
+                
+                fileUploadContainer.classList.remove('hidden');
+            } else {
+                keyMessage.textContent = 'Kunci API tampaknya terlalu pendek. Pastikan Anda menyalin seluruh kunci.';
+                keyMessage.classList.remove('hidden');
+            }
+        }
+
+        /**
+         * Mengimplementasikan panggilan API dengan Exponential Backoff.
+         */
+        async function callGeminiApi(systemPrompt, userQuery) {
+            if (!apiKey) {
+                 return "Error: Kunci API tidak ditemukan. Harap masukkan kunci di kolom atas.";
+            }
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            for (let i = 0; i < MAX_RETRIES; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorBody = await response.json();
+                        if (response.status === 429 && i < MAX_RETRIES - 1) {
+                            const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            continue;
+                        }
+                        throw new Error(`API call failed with status ${response.status}: ${JSON.stringify(errorBody)}`);
+                    }
+
+                    const result = await response.json();
+                    return result.candidates?.[0]?.content?.parts?.[0]?.text || "Gagal mendapatkan respons. Cek kunci API dan kuota.";
+
+                } catch (error) {
+                    console.error("Gemini API Error:", error);
+                    if (i === MAX_RETRIES - 1) {
+                         return "Kesalahan API: Tidak dapat menghubungi layanan analisis. Pastikan kunci dan koneksi internet Anda berfungsi.";
+                    }
+                }
+            }
+        }
+
+        function handleFile(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const data = new Uint8Array(event.target.result);
+                // XLSX global object is available due to inline loading
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                processData(jsonData);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function isRowEmpty(row) {
+            if (!row) return true;
+            return row.every(cell => !cell || String(cell).trim() === '');
+        }
+
+        function processData(jsonData) {
+            if (jsonData.length === 0) {
+                 initialMessage.innerHTML = '<p class="text-red-500">File kosong. Pastikan sheet berisi data.</p>';
+                 initialMessage.style.display = 'block';
+                 tableWrapper.style.display = 'none';
+                 return;
+            }
+
+            // 1. Cari baris Header yang valid (baris pertama yang tidak kosong)
+            let headerIndex = -1;
+            for (let i = 0; i < jsonData.length; i++) {
+                if (!isRowEmpty(jsonData[i])) {
+                    headerIndex = i;
+                    break;
+                }
+            }
+            
+            if (headerIndex === -1) {
+                initialMessage.innerHTML = '<p class="text-red-500">File tidak berisi data header yang valid.</p>';
+                initialMessage.style.display = 'block';
+                return;
+            }
+
+            const header = jsonData[headerIndex]; 
+            const rows = jsonData.slice(headerIndex + 1); 
+            
+            // --- DIAGNOSTIC BOX SETUP ---
+            let diagnosticHtml = `<p class="text-sm font-semibold text-gray-800">Peta Kolom Terdeteksi (Header ditemukan pada Baris ${headerIndex + 1}):</p><ul class="list-disc list-inside space-y-0.5">`;
+
+            let headerMapping = {};
+            
+            if (header) {
+                header.forEach((cell, i) => {
+                    const cleanCell = String(cell || '').toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                    
+                    let keyFound = null;
+                    if (cleanCell.startsWith('no')) keyFound = 'no';
+                    else if (cleanCell.includes('bab') && !cleanCell.includes('uraian')) keyFound = 'bab_ep'; 
+                    else if (cleanCell.includes('uraian') || cleanCell.includes('elemen_penilaian') || cleanCell.includes('deskripsi')) keyFound = 'uraian_ep'; 
+                    else if (cleanCell.includes('rekomendasi') || cleanCell.includes('surveyor') || cleanCell.includes('hasil_survei')) keyFound = 'rekomendasi_surveyor';
+                    else if (cleanCell.includes('kegiatan') && !cleanCell.includes('status') || cleanCell.includes('tindak_lanjut')) keyFound = 'kegiatan';
+                    else if (cleanCell.includes('status_kegiatan')) keyFound = 'status_kegiatan';
+                    else if (cleanCell.includes('catatan_pembina')) keyFound = 'catatan_pembina';
+                    
+                    if(keyFound) {
+                        if (headerMapping[keyFound] === undefined || (headerMapping[keyFound] < i && keyFound === 'uraian_ep')) {
+                            headerMapping[keyFound] = i;
+                        }
+                        diagnosticHtml += `<li class="text-xs"><strong>${keyFound.toUpperCase()}</strong> &rarr; Index ${i} (Header: "${cell}")</li>`;
+                    } else {
+                        diagnosticHtml += `<li class="text-xs text-red-700">Kolom Index ${i} ("${cell}") **tidak dikenali** sebagai kolom utama.</li>`;
+                    }
+                });
+            }
+            diagnosticHtml += '</ul>';
+
+            // Fallback indices (Menggunakan urutan yang paling umum terlihat)
+            const noIndex = headerMapping.no !== undefined ? headerMapping.no : 0;
+            const babEpIndex = headerMapping.bab_ep !== undefined ? headerMapping.bab_ep : 1;
+            const uraianEpIndex = headerMapping.uraian_ep !== undefined ? headerMapping.uraian_ep : 2; 
+            const rekomIndex = headerMapping.rekomendasi_surveyor !== undefined ? headerMapping.rekomendasi_surveyor : 3;
+            const kegiatanIndex = headerMapping.kegiatan !== undefined ? headerMapping.kegiatan : 4;
+            const statusIndex = headerMapping.status_kegiatan !== undefined ? headerMapping.status_kegiatan : 7;
+            const catatanIndex = headerMapping.catatan_pembina !== undefined ? headerMapping.catatan_pembina : 8;
+            
+            let lastValidNo = '';
+            let initialId = 0;
+
+            fullData = rows.map((row, index) => {
+                
+                let currentNo = row[noIndex] ? String(row[noIndex]).trim() : '';            <h1 class="text-3xl font-bold text-gray-800">Aplikasi Monev PPS</h1>
             <p class="text-gray-500 mt-1">Unggah file XLSX Anda untuk memulai monitoring dan evaluasi dengan bantuan kecerdasan buatan.</p>
         </header>
 

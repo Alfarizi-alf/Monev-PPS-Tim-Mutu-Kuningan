@@ -2,114 +2,456 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aplikasi Monev PPS</title>
-    <!-- Memuat Tailwind CSS untuk styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Aplikasi Monev PPS (Versi Kompatibilitas)</title>
     
     <style>
-        /* Style kustom untuk tampilan yang lebih baik */
+        /* CSS Sederhana untuk Browser Kuno */
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f4f7f6;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 15px;
         }
-        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border: 1px solid #ddd;
+        }
+        header {
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+        h1 {
+            color: #333;
+            margin: 0;
+        }
+        input[type="file"], button, select, textarea {
+            font-size: 14px;
+            padding: 8px 12px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #tabs-container button {
+            background-color: #f2f2f2;
+            color: #333;
+            margin-right: 5px;
+        }
+        #tabs-container button.active {
+            background-color: #007BFF;
+            color: white;
+        }
+        #table-wrapper {
+            overflow-x: auto;
+            border: 1px solid #ddd;
+            margin-top: 15px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
         th, td {
-            white-space: normal;
-            word-wrap: break-word;
-            padding: 12px 15px;
+            border: 1px solid #ddd;
+            padding: 8px;
             text-align: left;
             vertical-align: top;
-            border-bottom: 1px solid #e2e8f0;
         }
         th {
-            position: sticky;
-            top: 0;
-            background-color: #f1f5f9;
-            z-index: 10;
-        }
-        .tab-button {
-            transition: all 0.3s ease;
-        }
-        .tab-button.active {
-            background-color: #3b82f6;
-            color: white;
-            font-weight: bold;
-        }
-        .ai-button {
-            background-color: #10b981;
-            color: white;
-            padding: 6px 10px;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            display: inline-flex;
-            align-items: center;
-        }
-        .ai-button.feedback-btn {
-            background-color: #8b5cf6;
-        }
-        .ai-button.feedback-btn:hover {
-            background-color: #7c3aed;
-        }
-        .ai-button.pdf-btn {
-            background-color: #ef4444;
-        }
-        .ai-button.pdf-btn:hover {
-            background-color: #dc2626;
-        }
-        .ai-button.excel-btn {
-             background-color: #16a34a; /* Warna Hijau Excel */
-        }
-        .ai-button.excel-btn:hover {
-            background-color: #15803d;
-        }
-        .ai-button.analisa-btn {
-             background-color: #f97316; /* Warna Orange untuk Analisa */
-        }
-        .ai-button.analisa-btn:hover {
-            background-color: #ea580c;
-        }
-        .ai-button:hover {
-            background-color: #059669;
+            background-color: #f2f2f2;
         }
         .ai-output {
             margin-top: 8px;
             padding: 8px;
             background-color: #f0f9ff;
             border-left: 4px solid #3b82f6;
-            font-size: 0.9rem;
-            color: #374151;
-            white-space: pre-wrap; /* Mempertahankan format teks dari AI */
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+        .ai-output-error {
+            margin-top: 8px;
+            padding: 8px;
+            background-color: #fff1f2;
+            border-left: 4px solid #ef4444;
+            color: #b91c1c;
         }
         .loader {
+            display: inline-block;
             border: 2px solid #f3f3f3;
             border-top: 2px solid #3498db;
             border-radius: 50%;
-            width: 16px;
-            height: 16px;
+            width: 14px;
+            height: 14px;
             animation: spin 1s linear infinite;
-            display: inline-block;
             margin-right: 5px;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .hidden { display: none; }
     </style>
-    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 </head>
 <body>
-    <div id="loading-external-scripts" class="text-center p-8 text-gray-600">
-        <p><span class="loader"></span> Memuat pustaka eksternal (SheetJS, jsPDF, dll.). Harap tunggu...</p>
+
+    <div id="loading-external-scripts">
+        <p>Memuat pustaka eksternal... Harap tunggu...</p>
     </div>
     
-    <div id="main-app-content" class="p-4 md:p-6 hidden">
-        <div class="max-w-full mx-auto bg-white p-6 rounded-xl shadow-lg">
-            <header class="mb-6 border-b pb-4">
-                <h1 class="text-3xl font-bold text-gray-800">Aplikasi Monev PPS</h1>
-                <p class="text-gray-500 mt-1">Unggah file XLSX Anda untuk memulai monitoring dan evaluasi dengan bantuan kecerdasan buatan.</p>
+    <div id="main-app-content" class="container hidden">
+        <header>
+            <h1>Aplikasi Monev PPS</h1>
+            <p>Unggah file XLSX Anda untuk memulai.</p>
+            <button id="reset-app-btn" class="hidden" style="background-color: #888;">Mulai Ulang</button>
+        </header>
+
+        <div id="file-upload-container">
+            <label for="file-upload">Unggah File Laporan (.xlsx):</label><br>
+            <input type="file" id="file-upload" accept=".xlsx, .xls">
+        </div>
+        
+        <div id="app-content" class="hidden">
+            <div id="tabs-container"></div>
+            <button id="download-table-btn" style="background-color: #008CBA;">Unduh Tabel (XLSX)</button>
+            
+            <div id="summary-container" class="hidden" style="margin-top: 20px; padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9;"></div>
+            <div id="diagnostic-box" class="hidden" style="margin-top: 15px; padding: 10px; background-color: #ffffe0; border: 1px solid #e6e6e0;"></div>
+
+            <div id="table-wrapper">
+                <table id="data-table">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Bab & EP</th>
+                            <th>Uraian EP</th>
+                            <th>Rekomendasi Surveyor</th>
+                            <th>Kegiatan</th>
+                            <th>Info Dokumen</th>
+                            <th>Kecocokan</th>
+                            <th>Status Kegiatan</th>
+                            <th>Catatan Pembina</th>
+                            <th>Feedback Pembina</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+        <div id="initial-message">
+            <p>Data dari file yang diunggah akan muncul di sini.</p>
+        </div>
+    </div>
+
+    <!-- SCRIPT LIBRARY EKSTERNAL -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/es6-promise/4.2.8/es6-promise.auto.min.js"></script>
+
+    <!-- SCRIPT APLIKASI UTAMA (ES5 COMPATIBLE) -->
+    <script>
+        // Polyfill untuk Array.from jika tidak ada
+        if (!Array.from) {
+          Array.from = (function () {
+            var toStr = Object.prototype.toString;
+            var isCallable = function (fn) {
+              return typeof fn === 'function' || toStr.call(fn) === '[object Function]';
+            };
+            var toInteger = function (value) {
+              var number = Number(value);
+              if (isNaN(number)) { return 0; }
+              if (number === 0 || !isFinite(number)) { return number; }
+              return (number > 0 ? 1 : -1) * Math.floor(Math.abs(number));
+            };
+            var maxSafeInteger = Math.pow(2, 53) - 1;
+            var toLength = function (value) {
+              var len = toInteger(value);
+              return Math.min(Math.max(len, 0), maxSafeInteger);
+            };
+            return function from(arrayLike/*, mapFn, thisArg */) {
+              var C = this;
+              var items = Object(arrayLike);
+              if (arrayLike == null) {
+                throw new TypeError("Array.from requires an array-like object - not null or undefined");
+              }
+              var mapFn = arguments.length > 1 ? arguments[1] : void undefined;
+              var T;
+              if (typeof mapFn !== 'undefined') {
+                if (!isCallable(mapFn)) {
+                  throw new TypeError('Array.from: when provided, the second argument must be a function');
+                }
+                if (arguments.length > 2) {
+                  T = arguments[2];
+                }
+              }
+              var len = toLength(items.length);
+              var A = isCallable(C) ? Object(new C(len)) : new Array(len);
+              var k = 0;
+              var kValue;
+              while (k < len) {
+                kValue = items[k];
+                if (mapFn) {
+                  A[k] = typeof T === 'undefined' ? mapFn(kValue, k) : mapFn.call(T, kValue, k);
+                } else {
+                  A[k] = kValue;
+                }
+                k += 1;
+              }
+              A.length = len;
+              return A;
+            };
+          }());
+        }
+
+        // Variabel global
+        var fullData = [];
+        var aiCache = {}; // Menggunakan object biasa, bukan Map
+        var MAX_RETRIES = 3;
+        var MODEL_NAME = "gemini-2.5-flash-preview-05-20";
+        var apiKey = ""; 
+
+        var fileUpload, fileUploadContainer, resetAppBtn;
+        var appContent, tabsContainer, dataTableBody, tableWrapper, diagnosticBox, initialMessage, summaryContainer, downloadTableBtn;
+
+        function initApp() {
+            fileUpload = document.getElementById('file-upload');
+            fileUploadContainer = document.getElementById('file-upload-container');
+            resetAppBtn = document.getElementById('reset-app-btn');
+            appContent = document.getElementById('app-content');
+            tabsContainer = document.getElementById('tabs-container');
+            dataTableBody = document.querySelector('#data-table tbody');
+            tableWrapper = document.getElementById('table-wrapper');
+            diagnosticBox = document.getElementById('diagnostic-box');
+            initialMessage = document.getElementById('initial-message'); 
+            summaryContainer = document.getElementById('summary-container');
+            downloadTableBtn = document.getElementById('download-table-btn');
+
+            tableWrapper.style.display = 'none';
+
+            fileUpload.addEventListener('change', handleFile, false);
+            downloadTableBtn.addEventListener('click', downloadTableAsXLSX);
+            resetAppBtn.addEventListener('click', resetApp);
+            
+            document.getElementById('loading-external-scripts').className = 'hidden';
+            document.getElementById('main-app-content').className = 'container';
+        }
+
+        function resetApp() {
+            fullData = [];
+            aiCache = {};
+            dataTableBody.innerHTML = '';
+            tabsContainer.innerHTML = '';
+            summaryContainer.className = 'hidden';
+            summaryContainer.innerHTML = '';
+            diagnosticBox.className = 'hidden';
+            diagnosticBox.innerHTML = '';
+            tableWrapper.style.display = 'none';
+            initialMessage.style.display = 'block';
+            appContent.className = 'hidden';
+            fileUpload.value = '';
+            resetAppBtn.className = 'hidden';
+        }
+
+        function callGeminiApi(systemPrompt, userQuery) {
+            var apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + MODEL_NAME + ":generateContent?key=" + apiKey;
+            var payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            return new Promise(function(resolve, reject) {
+                var attempt = function(retries) {
+                    fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(function(response) {
+                        if (!response.ok) {
+                            return response.json().then(function(err) {
+                                throw new Error("Status " + response.status + ": " + (err.error ? err.error.message : 'Unknown Error'));
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(function(result) {
+                        var text = (result.candidates && result.candidates[0] && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts[0].text) || "Gagal mendapatkan respons.";
+                        resolve(text);
+                    })
+                    .catch(function(error) {
+                        console.error("Gemini API Error:", error);
+                        if (retries > 0) {
+                            setTimeout(function() { attempt(retries - 1); }, 1000 * Math.pow(2, MAX_RETRIES - retries));
+                        } else {
+                            resolve("Kesalahan API: " + error.message + ". Coba lagi nanti.");
+                        }
+                    });
+                };
+                attempt(MAX_RETRIES);
+            });
+        }
+
+        function handleFile(e) {
+            var file = e.target.files[0];
+            var reader = new FileReader();
+            reader.onload = function(event) {
+                var data = new Uint8Array(event.target.result);
+                var workbook = XLSX.read(data, { type: 'array' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                processData(jsonData);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Fungsi lainnya diubah ke ES5
+        function isRowEmpty(row) {
+            if (!row) return true;
+            return row.every(function(cell) { return !cell || String(cell).trim() === ''; });
+        }
+
+        function processData(jsonData) {
+            if (jsonData.length === 0) {
+                initialMessage.innerHTML = '<p style="color:red;">File kosong.</p>'; return;
+            }
+            var headerIndex = -1;
+            for (var i = 0; i < jsonData.length; i++) {
+                if (!isRowEmpty(jsonData[i])) { headerIndex = i; break; }
+            }
+            if (headerIndex === -1) {
+                initialMessage.innerHTML = '<p style="color:red;">Header tidak ditemukan.</p>'; return;
+            }
+            var header = jsonData[headerIndex];
+            var rows = jsonData.slice(headerIndex + 1);
+            var diagnosticHtml = '<p>Peta Kolom (Baris ' + (headerIndex + 1) + '):</p><ul>';
+            var headerMapping = {};
+            if (header) {
+                header.forEach(function(cell, i) {
+                    var cleanCell = String(cell || '').toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                    var keyFound = null;
+                    if (cleanCell.startsWith('no')) keyFound = 'no';
+                    else if (cleanCell.indexOf('bab') > -1 && cleanCell.indexOf('uraian') === -1) keyFound = 'bab_ep';
+                    else if (cleanCell.indexOf('uraian') > -1 || cleanCell.indexOf('elemen_penilaian') > -1) keyFound = 'uraian_ep';
+                    else if (cleanCell.indexOf('rekomendasi') > -1 || cleanCell.indexOf('surveyor') > -1) keyFound = 'rekomendasi_surveyor';
+                    else if (cleanCell.indexOf('kegiatan') > -1 && cleanCell.indexOf('status') === -1) keyFound = 'kegiatan';
+                    else if (cleanCell.indexOf('status_kegiatan') > -1) keyFound = 'status_kegiatan';
+                    else if (cleanCell.indexOf('catatan_pembina') > -1) keyFound = 'catatan_pembina';
+                    if (keyFound) {
+                        if (headerMapping[keyFound] === undefined) headerMapping[keyFound] = i;
+                        diagnosticHtml += '<li><strong>' + keyFound.toUpperCase() + '</strong> &rarr; Index ' + i + ' ("' + cell + '")</li>';
+                    } else {
+                        diagnosticHtml += '<li style="color:red;">Index ' + i + ' ("' + cell + '") tidak dikenali.</li>';
+                    }
+                });
+            }
+            diagnosticHtml += '</ul>';
+            
+            var noIndex = headerMapping.no !== undefined ? headerMapping.no : 0;
+            var babEpIndex = headerMapping.bab_ep !== undefined ? headerMapping.bab_ep : 1;
+            var uraianEpIndex = headerMapping.uraian_ep !== undefined ? headerMapping.uraian_ep : 2;
+            var rekomIndex = headerMapping.rekomendasi_surveyor !== undefined ? headerMapping.rekomendasi_surveyor : 3;
+            var kegiatanIndex = headerMapping.kegiatan !== undefined ? headerMapping.kegiatan : 4;
+            var statusIndex = headerMapping.status_kegiatan !== undefined ? headerMapping.status_kegiatan : 7;
+            var catatanIndex = headerMapping.catatan_pembina !== undefined ? headerMapping.catatan_pembina : 8;
+
+            var lastValidNo = '';
+            var initialId = 0;
+            fullData = rows.map(function(row) {
+                var currentNo = row[noIndex] ? String(row[noIndex]).trim() : '';
+                var bab_ep = row[babEpIndex] ? String(row[babEpIndex]).trim() : '';
+                var uraian_ep = row[uraianEpIndex] ? String(row[uraianEpIndex]).trim() : '';
+                var rekomendasi_surveyor = row[rekomIndex] ? String(row[rekomIndex]).trim() : '';
+                var kegiatan = row[kegiatanIndex] ? String(row[kegiatanIndex]).trim() : '';
+                if (isRowEmpty([currentNo, bab_ep, uraian_ep, rekomendasi_surveyor, kegiatan])) return null;
+                if (currentNo) lastValidNo = currentNo; else currentNo = lastValidNo;
+                if (!currentNo) return null;
+                return {
+                    id: initialId++, no: currentNo, bab_ep: bab_ep, uraian_ep: uraian_ep,
+                    rekomendasi_surveyor: rekomendasi_surveyor, kegiatan: kegiatan,
+                    status_kegiatan: row[statusIndex] || '', catatan_pembina: row[catatanIndex] || '',
+                    ai_info_doc: '', ai_analisa: '', ai_feedback: '', kecocokan_manual: ''
+                };
+            }).filter(function(item) { return item !== null; });
+
+            if (fullData.length > 0) {
+                appContent.className = ''; resetAppBtn.className = '';
+                tableWrapper.style.display = 'block'; initialMessage.style.display = 'none';
+                diagnosticBox.className = ''; diagnosticBox.innerHTML = diagnosticHtml;
+                createTabs(); renderTable(fullData);
+            } else {
+                initialMessage.innerHTML = '<p style="color:red;">Gagal memproses data.</p>';
+            }
+        }
+        
+        function createTabs() {
+            tabsContainer.innerHTML = '';
+            summaryContainer.className = 'hidden';
+            var babColumnKey = 'bab_ep';
+            if (!fullData[0] || !fullData[0][babColumnKey]) return;
+            
+            var babSet = {};
+            fullData.forEach(function(item) {
+                var babInfo = (item[babColumnKey] || '').toString();
+                var match = babInfo.match(/Bab\s*([IVXLCDM\d]+)/i);
+                if (match) babSet['BAB ' + match[1].toUpperCase()] = true;
+            });
+            var babs = Object.keys(babSet);
+
+            var allButton = document.createElement('button');
+            allButton.textContent = 'Semua Bab';
+            allButton.className = 'active';
+            allButton.onclick = function() {
+                renderTable(fullData);
+                summaryContainer.className = 'hidden';
+                var buttons = document.querySelectorAll('#tabs-container button');
+                for (var i = 0; i < buttons.length; i++) buttons[i].className = '';
+                allButton.className = 'active';
+            };
+            tabsContainer.appendChild(allButton);
+
+            babs.forEach(function(bab) {
+                var button = document.createElement('button');
+                button.textContent = bab;
+                button.onclick = function() {
+                    var filteredData = fullData.filter(function(item) {
+                        return (item[babColumnKey] || '').toString().toUpperCase().indexOf(bab) === 0;
+                    });
+                    renderTable(filteredData);
+                    showBabSummaryUI(bab);
+                    var buttons = document.querySelectorAll('#tabs-container button');
+                    for (var i = 0; i < buttons.length; i++) buttons[i].className = '';
+                    button.className = 'active';
+                };
+                tabsContainer.appendChild(button);
+            });
+        }
+        
+        function renderTable(data) {
+            dataTableBody.innerHTML = '';
+            data.forEach(function(row) {
+                var tr = document.createElement('tr');
+                tr.id = 'row-' + row.id;
+                var status = (row.status_kegiatan || '').toLowerCase();
+                  <p class="text-gray-500 mt-1">Unggah file XLSX Anda untuk memulai monitoring dan evaluasi dengan bantuan kecerdasan buatan.</p>
             </header>
     
             <!-- Bagian Input API Key -->
